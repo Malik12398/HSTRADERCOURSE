@@ -87,13 +87,6 @@ async def daily_check():
                 cursor.execute("UPDATE users SET zero_warnings=? WHERE po_id=?", (warnings, po_id))
                 await client.send_message(tg_username, f"⚠️ Warning {warnings}/7: Deposit ASAP!")
 
-# Check if script is run for daily check
-if "--daily-check" in sys.argv:
-    import asyncio
-    asyncio.run(daily_check())
-    sys.exit(0)
-
-
 # Run Bot
 client.start()
 client.run_until_disconnected()

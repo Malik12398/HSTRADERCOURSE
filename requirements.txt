@@ -1,3 +1,6 @@
 python-telegram-bot
 pyrogram
 sqlite3
+aiogram>=3.0.0
+openpyxl==3.1.2
+python-dotenv==1.0.0

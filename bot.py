@@ -12,12 +12,13 @@ if not os.path.exists("po_users.db"):
 conn = sqlite3.connect("po_users.db")
 cursor = conn.cursor()
 
-# Create Table (if not exists)
-cursor.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT) (
-                tg_username TEXT,
-                po_id TEXT PRIMARY KEY,
-                balance REAL,
-                zero_warnings INTEGER)''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    # Agar aur columns chahiye, yahan add karo (without extra brackets)
+    username TEXT,
+    date_joined TIMESTAMP
+)''')  # Yeh last line mein ')' ke baad kuch nahi hona chahiye!
 conn.commit()
 
 # Telethon Client (Bot ke liye)

@@ -38,7 +38,12 @@ def parse_po_response(text):
 # Start Command
 @client.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.reply('''Welcome! Send your Pocket Option ID to verify.''')
+    await event.reply('''Welcome to HSTrader Free Course!
+If you want to join this free course then make sure your Pocket Option account is created through our referral link:
+https://po-ru4.click/register?utm_campaign=820621&utm_source=affiliate&utm_medium=sr&a=XIRNLsVcxXm1M4&ac=freeclasses&code=50START
+
+Then send your Pocket Option ID for verification.''')
+
 
 # PO ID Check
 @client.on(events.NewMessage)

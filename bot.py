@@ -18,7 +18,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
     # Agar aur columns chahiye, yahan add karo (without extra brackets)
     username TEXT,
     date_joined TIMESTAMP
-)''')  # Yeh last line mein ')' ke baad kuch nahi hona chahiye!
+)''')
 conn.commit()
 
 # Telethon Client (Bot ke liye)

@@ -3,25 +3,26 @@ import os
 import sqlite3
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
-from config import API_ID, API_HASH, BOT_TOKEN, PO_BOT_USERNAME
+from telethon import events
+from config import API_ID, API_HASH, BOT_TOKEN, PO_BOT_USERNAME, GROUP_ID
 
+# Database setup
 if not os.path.exists("po_users.db"):
-    open("po_users.db", "w").close()  # Khali file banayega agar missing ho
+    open("po_users.db", "w").close()
 
-# SQLite Database Setup
 conn = sqlite3.connect("po_users.db")
 cursor = conn.cursor()
 
+# Fixed SQL query (removed # comments and extra brackets)
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY,
-    name TEXT,
-    # Agar aur columns chahiye, yahan add karo (without extra brackets)
-    username TEXT,
-    date_joined TIMESTAMP
+    tg_username TEXT PRIMARY KEY,
+    po_id TEXT UNIQUE,
+    balance REAL,
+    zero_warnings INTEGER
 )''')
 conn.commit()
 
-# Telethon Client (Bot ke liye)
+# Telethon Client
 client = TelegramClient(StringSession(), API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 async def check_po_user(po_id):
@@ -36,7 +37,7 @@ def parse_po_response(text):
     data = {"balance": 0.0, "valid": False}
     if "Balance: $" in text:
         data["balance"] = float(text.split("Balance: $")[1].split()[0])
-    if "Link: https://u3.shortink.io/register" in text:  # Your REF link
+    if "Link: https://u3.shortink.io/register" in text:
         data["valid"] = True
     return data
 
@@ -48,7 +49,6 @@ If you want to join this free course then make sure your Pocket Option account i
 https://po-ru4.click/register?utm_campaign=820621&utm_source=affiliate&utm_medium=sr&a=XIRNLsVcxXm1M4&ac=freeclasses&code=50START
 
 Then send your Pocket Option ID for verification.''')
-
 
 # PO ID Check
 @client.on(events.NewMessage)
@@ -98,5 +98,5 @@ async def daily_check():
                 await client.send_message(tg_username, f"⚠️ Warning {warnings}/7: Deposit ASAP!")
 
 # Run Bot
-client.start()
+print("Bot started...")
 client.run_until_disconnected()

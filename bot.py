@@ -1,23 +1,28 @@
 from telethon.sync import TelegramClient, events
 from telethon.sessions import StringSession
-import asyncio
 import sqlite3
 import os
 from dotenv import load_dotenv
 
+# Load environment variables from .env (for local testing only)
 load_dotenv()
 
+# Get sensitive values from environment
 api_id = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
 bot_token = os.getenv("BOT_TOKEN")
 affiliate_bot = "@AffiliatePocketBot"
-group_id = int(os.getenv("GROUP_ID"))
-admin_id = int(os.getenv("ADMIN_ID"))
+group_id = int(os.getenv("GROUP_ID"))  # e.g., -1002655615295
+admin_id = int(os.getenv("ADMIN_ID"))  # e.g., 7765768262
 
-client = TelegramClient(StringSession(), api_id, api_hash)
-db = sqlite3.connect("users.db")
+# Create a Telethon client using bot token (no login/input required)
+client = TelegramClient(StringSession(), api_id, api_hash).start(bot_token=bot_token)
+
+# Connect to SQLite DB
+db = sqlite3.connect("po_users.db")  # ✅ Your DB file name as discussed
 cursor = db.cursor()
 
+# Create users table if not exists
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
@@ -27,7 +32,6 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 
 db.commit()
-
 @client.on(events.NewMessage(pattern='/start'))
 async def start_handler(event):
     buttons = [

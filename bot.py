@@ -1,102 +1,121 @@
-import sys
-import os
-import sqlite3
-from telethon.sync import TelegramClient
+from telethon.sync import TelegramClient, events
 from telethon.sessions import StringSession
-from telethon import events
-from config import API_ID, API_HASH, BOT_TOKEN, PO_BOT_USERNAME, GROUP_ID
+import asyncio
+import sqlite3
+import os
+from dotenv import load_dotenv
 
-# Database setup
-if not os.path.exists("po_users.db"):
-    open("po_users.db", "w").close()
+load_dotenv()
 
-conn = sqlite3.connect("po_users.db")
-cursor = conn.cursor()
+api_id = int(os.getenv("API_ID"))
+api_hash = os.getenv("API_HASH")
+bot_token = os.getenv("BOT_TOKEN")
+affiliate_bot = "@AffiliatePocketBot"
+group_id = int(os.getenv("GROUP_ID"))
+admin_id = int(os.getenv("ADMIN_ID"))
 
-# Fixed SQL query (removed # comments and extra brackets)
-cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-    tg_username TEXT PRIMARY KEY,
-    po_id TEXT UNIQUE,
-    balance REAL,
-    zero_warnings INTEGER
-)''')
-conn.commit()
+client = TelegramClient(StringSession(), api_id, api_hash)
+db = sqlite3.connect("users.db")
+cursor = db.cursor()
 
-# Telethon Client
-client = TelegramClient(StringSession(), API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY,
+    pocket_id TEXT,
+    zero_balance_days INTEGER DEFAULT 0
+)
+""")
 
-async def check_po_user(po_id):
-    """Pocket Option bot se user check kare"""
-    async with client.conversation(PO_BOT_USERNAME) as conv:
-        await conv.send_message(f"/user {po_id}")
-        response = await conv.get_response()
-        return response.text
+db.commit()
 
-def parse_po_response(text):
-    """Response se balance/link extract kare"""
-    data = {"balance": 0.0, "valid": False}
-    if "Balance: $" in text:
-        data["balance"] = float(text.split("Balance: $")[1].split()[0])
-    if "Link: https://u3.shortink.io/register" in text:
-        data["valid"] = True
-    return data
-
-# Start Command
 @client.on(events.NewMessage(pattern='/start'))
-async def start(event):
-    await event.reply('''Welcome to HSTrader Free Course!
-If you want to join this free course then make sure your Pocket Option account is created through our referral link:
-https://po-ru4.click/register?utm_campaign=820621&utm_source=affiliate&utm_medium=sr&a=XIRNLsVcxXm1M4&ac=freeclasses&code=50START
+async def start_handler(event):
+    buttons = [
+        [event.button.text("Join", resize=True)]
+    ]
+    await event.respond(
+        "Welcome to HSTrader Free Course!\nIf you want to join then click the Join button.",
+        buttons=buttons
+    )
 
-Then send your Pocket Option ID for verification.''')
+@client.on(events.NewMessage(pattern='Join'))
+async def join_handler(event):
+    await event.respond(
+        "If you want to join this free course then make sure your Pocket Option account is created through our referral link:\n"
+        "https://po-ru4.click/register?utm_campaign=820621&utm_source=affiliate&utm_medium=sr&a=XIRNLsVcxXm1M4&ac=freeclasses&code=50START\n"
+        "Send your Pocket Option ID for verification."
+    )
 
-# PO ID Check
-@client.on(events.NewMessage)
-async def verify(event):
-    if event.text.isdigit():  # PO ID
-        po_id = event.text
-        tg_username = event.sender.username
-        
-        # Check if PO ID already used
-        cursor.execute("SELECT * FROM users WHERE po_id=?", (po_id,))
-        if cursor.fetchone():
-            await event.reply("❌ This ID is already used!")
+@client.on(events.NewMessage(pattern='^[0-9]{5,}$'))
+async def pocket_id_handler(event):
+    user_id = event.sender_id
+    pocket_id = event.raw_text.strip()
+    cursor.execute("SELECT * FROM users WHERE pocket_id = ?", (pocket_id,))
+    duplicate = cursor.fetchone()
+
+    if duplicate:
+        await event.respond(f"This Pocket Option ID is already used by user {duplicate[0]}.")
+        return
+
+    await event.respond("Verifying your Pocket Option ID...")
+
+    await client.send_message(affiliate_bot, f"/user {pocket_id}")
+    await asyncio.sleep(5)
+    async for msg in client.iter_messages(affiliate_bot, limit=1):
+        if "No user found" in msg.text or "not referred" in msg.text:
+            await event.respond("It seems like your account is not created with our link. Kindly use this link again:\n"
+                                "https://po-ru4.click/register?utm_campaign=820621&utm_source=affiliate&utm_medium=sr&a=XIRNLsVcxXm1M4&ac=freeclasses&code=50START")
             return
-        
-        # Verify via PO Bot
-        response = await check_po_user(po_id)
-        user_data = parse_po_response(response)
-        
-        if not user_data["valid"]:
-            await event.reply("❌ Not registered via our link!\nUse: [REF_LINK]")
-        elif user_data["balance"] < 50:
-            await event.reply(f"⚠️ Required: $50 (Your Balance: ${user_data['balance']})")
-        else:
-            cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?)", 
-                          (tg_username, po_id, user_data["balance"], 0))
-            conn.commit()
-            await event.reply("✅ Verified! Group Link: [LINK]")
+        if "$" in msg.text:
+            balance = float(msg.text.split("$")[-1].split()[0])
+            if balance < 50:
+                await event.respond("It seems your balance does not meet the $50 minimum. Deposit $50 and then send your ID again.")
+                return
+            cursor.execute("INSERT INTO users (user_id, pocket_id) VALUES (?, ?)", (user_id, pocket_id))
+            db.commit()
+            invite = await client(functions.messages.ExportChatInviteRequest(group_id))
+            await event.respond(f"You're verified! Join the group here: {invite.link}")
+            return
 
-# Daily Check (24h)
-async def daily_check():
-    cursor.execute("SELECT * FROM users")
-    for user in cursor.fetchall():
-        tg_username, po_id, balance, warnings = user
-        response = await check_po_user(po_id)
-        user_data = parse_po_response(response)
-        
-        if not user_data["valid"]:
-            await client.kick_participant(GROUP_ID, tg_username)
-            await client.send_message(tg_username, "🚫 Removed: Invalid account!")
-        elif user_data["balance"] == 0:
-            warnings += 1
-            if warnings >= 7:
-                await client.kick_participant(GROUP_ID, tg_username)
-                await client.send_message(tg_username, "🚫 Removed: 7 days zero balance!")
-            else:
-                cursor.execute("UPDATE users SET zero_warnings=? WHERE po_id=?", (warnings, po_id))
-                await client.send_message(tg_username, f"⚠️ Warning {warnings}/7: Deposit ASAP!")
+@client.on(events.NewMessage(from_users=admin_id, pattern='/export'))
+async def export_data(event):
+    with open("users_export.csv", "w") as file:
+        file.write("user_id,pocket_id,zero_balance_days\n")
+        for row in cursor.execute("SELECT * FROM users"):
+            file.write(f"{row[0]},{row[1]},{row[2]}\n")
+    await client.send_file(admin_id, "users_export.csv")
 
-# Run Bot
-print("Bot started...")
-client.run_until_disconnected()
+async def balance_checker():
+    while True:
+        for row in cursor.execute("SELECT user_id, pocket_id, zero_balance_days FROM users"):
+            uid, pid, days = row
+            await client.send_message(affiliate_bot, f"/user {pid}")
+            await asyncio.sleep(3)
+            async for msg in client.iter_messages(affiliate_bot, limit=1):
+                if "No user found" in msg.text:
+                    await client.kick_participant(group_id, uid)
+                    await client.send_message(uid, "You have been removed from the group because your account was deleted or not valid.")
+                    continue
+                if "$" in msg.text:
+                    balance = float(msg.text.split("$")[-1].split()[0])
+                    if balance == 0:
+                        days += 1
+                        if days >= 7:
+                            await client.kick_participant(group_id, uid)
+                            await client.send_message(uid, "You were removed from the group due to 7 consecutive days of zero balance.")
+                            cursor.execute("DELETE FROM users WHERE user_id = ?", (uid,))
+                        else:
+                            await client.send_message(uid, f"Your balance is $0. Kindly deposit again to stay in the group. Day {days}/7")
+                            cursor.execute("UPDATE users SET zero_balance_days = ? WHERE user_id = ?", (days, uid))
+                    else:
+                        cursor.execute("UPDATE users SET zero_balance_days = 0 WHERE user_id = ?", (uid,))
+            db.commit()
+        await asyncio.sleep(86400)  # 24 hours
+
+async def main():
+    await client.start(bot_token=bot_token)
+    print("Bot is running...")
+    await balance_checker()
+
+with client:
+    client.loop.run_until_complete(main())

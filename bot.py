@@ -1,15 +1,19 @@
 import sys
+import os
 import sqlite3
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from config import API_ID, API_HASH, BOT_TOKEN, PO_BOT_USERNAME
+
+if not os.path.exists("po_users.db"):
+    open("po_users.db", "w").close()  # Khali file banayega agar missing ho
 
 # SQLite Database Setup
 conn = sqlite3.connect("po_users.db")
 cursor = conn.cursor()
 
 # Create Table (if not exists)
-cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+cursor.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT) (
                 tg_username TEXT,
                 po_id TEXT PRIMARY KEY,
                 balance REAL,

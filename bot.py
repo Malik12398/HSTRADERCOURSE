@@ -158,11 +158,17 @@ async def daily_check():
 
 # Reset zero days logic will be handled inside handle_po_response by updating DB
 
-def start_scheduler():
-    loop = asyncio.get_event_loop()
+async def start_scheduler():
     scheduler.add_job(daily_check, "cron", hour=23, minute=0)
     scheduler.start()
 
 if __name__ == "__main__":
-    start_scheduler()
-    app.run()
+    async def main():
+        await start_scheduler()
+        await app.start()
+        print("Bot started.")
+        await app.idle()
+        await app.stop()
+
+    asyncio.run(main())
+

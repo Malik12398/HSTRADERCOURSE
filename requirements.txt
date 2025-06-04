@@ -1,4 +1,4 @@
 pyrogram>=2.0
-python-dotenv
-apscheduler
 TgCrypto>=1.2.2
+apscheduler>=3.10
+python-dotenv

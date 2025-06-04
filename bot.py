@@ -34,16 +34,16 @@ db.commit()
 @client.on(events.NewMessage(pattern='/start'))
 async def start_handler(event):
     buttons = [
-        [Button.text("Join")]
+        [Button.inline("Join", b"join_course")]
     ]
     await event.respond(
         "Welcome to HSTrader Free Course!\nIf you want to join then click the Join button.",
         buttons=buttons
     )
 
-@client.on(events.CallbackQuery(pattern='Join'))
+@client.on(events.CallbackQuery(pattern=b"join_course"))
 async def join_handler(event):
-    await event.answer()  # to acknowledge the button press
+    await event.answer()
     await event.edit(
         "If you want to join this free course then make sure your Pocket Option account is created through our referral link:\n"
         "https://po-ru4.click/register?utm_campaign=820621&utm_source=affiliate&utm_medium=sr&a=XIRNLsVcxXm1M4&ac=freeclasses&code=50START\n"
@@ -69,7 +69,7 @@ async def pocket_id_handler(event):
     try:
         response = await client.wait_for(
             events.NewMessage(from_users=affiliate_bot, incoming=True),
-            timeout=10  # wait max 10 seconds for response
+            timeout=10
         )
     except asyncio.TimeoutError:
         await event.respond("No response from affiliate bot. Please try again later.")
@@ -151,11 +151,11 @@ async def balance_checker():
                     cursor.execute("UPDATE users SET zero_balance_days = 0 WHERE user_id = ?", (uid,))
 
                 db.commit()
-        await asyncio.sleep(86400)  # run once every 24 hours
+        await asyncio.sleep(86400)
 
 async def main():
     print("Bot is running...")
     await balance_checker()
 
-with client:
-    client.loop.run_until_complete(main())
+client.loop.create_task(main())
+client.run_until_disconnected()

@@ -43,7 +43,7 @@ pending_verifications = {}
 scheduler = AsyncIOScheduler()
 
 # ====================== BOT FUNCTIONS ======================
-@app.on_message(filters.command("start"))
+@app.on_message(filters.command("/start"))
 async def start(client, message):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📌 Join Course", callback_data="join_course")]

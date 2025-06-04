@@ -1,4 +1,4 @@
-telethon
+pyrogram>=2.0
+sqlite3
 python-dotenv
 apscheduler
-aiofiles

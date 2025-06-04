@@ -17,6 +17,8 @@ affiliate_bot = "@AffiliatePocketBot"
 group_id = int(os.getenv("GROUP_ID"))
 admin_id = int(os.getenv("ADMIN_ID"))
 
+session_file_path = '"D:\HsTrader\session.session"'
+
 client = TelegramClient(StringSession(), api_id, api_hash).start(bot_token=bot_token)
 
 db = sqlite3.connect("po_users.db")
